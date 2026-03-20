@@ -80,11 +80,23 @@ class statsbestsuppliers extends ModuleGrid
         $this->ps_versions_compliancy = ['min' => '1.7.1.0', 'max' => _PS_VERSION_];
     }
 
+    /**
+     * Install the module and register the stats dashboard hook.
+     *
+     * @return bool True on successful installation, false otherwise
+     */
     public function install()
     {
         return parent::install() && $this->registerHook('displayAdminStatsModules');
     }
 
+    /**
+     * Render the best-suppliers ranking grid on the admin statistics dashboard.
+     *
+     * @param array $params Hook parameters passed by PrestaShop (unused)
+     *
+     * @return string HTML output for the statistics widget
+     */
     public function hookDisplayAdminStatsModules($params)
     {
         $engine_params = [
@@ -130,6 +142,11 @@ class statsbestsuppliers extends ModuleGrid
         return (int) Db::getInstance((bool) _PS_USE_SQL_SLAVE_)->getValue($sql);
     }
 
+    /**
+     * Build and execute the supplier ranking query, populating $this->_values and $this->_totalCount.
+     *
+     * @return void
+     */
     public function getData()
     {
         $this->_totalCount = $this->getTotalCount();
