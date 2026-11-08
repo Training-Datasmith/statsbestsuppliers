@@ -132,7 +132,7 @@ class statsbestsuppliers extends ModuleGrid
     {
         $this->_totalCount = $this->getTotalCount();
 
-        $this->query = 'SELECT s.name, SUM(od.product_quantity) as quantity, ROUND(SUM(od.product_quantity * od.unit_price_tax_excl) / o.conversion_rate, 2) as sales
+        $this->query = 'SELECT s.name, SUM(od.product_quantity) as quantity, ROUND(SUM(od.product_quantity * od.unit_price_tax_excl / o.conversion_rate), 2) as sales
 				FROM ' . _DB_PREFIX_ . 'order_detail od
 				LEFT JOIN ' . _DB_PREFIX_ . 'product p ON p.id_product = od.product_id
 				LEFT JOIN ' . _DB_PREFIX_ . 'orders o ON o.id_order = od.id_order
@@ -141,7 +141,7 @@ class statsbestsuppliers extends ModuleGrid
 					' . Shop::addSqlRestriction(Shop::SHARE_ORDER, 'o') . '
 					AND o.valid = 1
 					AND s.id_supplier IS NOT NULL
-				GROUP BY p.id_supplier';
+				GROUP BY s.id_supplier, s.name';
         if (Validate::IsName($this->_sort)) {
             $this->query .= ' ORDER BY `' . $this->_sort . '`';
             if (isset($this->_direction) && Validate::isSortDirection($this->_direction)) {
