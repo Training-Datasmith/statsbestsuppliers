@@ -76,7 +76,12 @@ fail_diag() {
 }
 
 extract_ok_line() {
-  grep -E '^OK \([0-9]+ tests, [0-9]+ assertions\)$' || true
+  local plural_only="${1:-1}"
+  if [[ "$plural_only" == "1" ]]; then
+    grep -E '^OK \([0-9]+ tests, [0-9]+ assertions\)$' || true
+  else
+    grep -E '^OK \([0-9]+ tests?, [0-9]+ assertions\)$' || true
+  fi
 }
 
 verify_phpunit_phar() {
@@ -287,6 +292,11 @@ verify_glob_count() {
 }
 
 main() {
+  local proof_or_filter=0
+  if [[ "$PROOF_ONLY" == "1" || ${#FILTER_ARGS[@]} -gt 0 ]]; then
+    proof_or_filter=1
+  fi
+
   command -v "${DOCKER[0]}" >/dev/null 2>&1 || { echo "docker not found in PATH" >&2; exit 1; }
   verify_glob_count
   log "Pulling images"
@@ -312,17 +322,24 @@ main() {
 
   local ordered_exit=0 shuffled_exit=0
   run_phpunit "$ordered_xml" "$ordered_log" || ordered_exit=$?
+
+  local ordered_output
+  ordered_output="$(cat "$ordered_log")"
+  fail_diag "$ordered_output"
+
+  if [[ "$proof_or_filter" == "1" ]]; then
+    exit "$ordered_exit"
+  fi
+
   run_phpunit "$shuffled_xml" "$shuffled_log" || shuffled_exit=$?
 
-  local ordered_output shuffled_output
-  ordered_output="$(cat "$ordered_log")"
+  local shuffled_output
   shuffled_output="$(cat "$shuffled_log")"
-  fail_diag "$ordered_output"
   fail_diag "$shuffled_output"
 
   local ordered_ok shuffled_ok
-  ordered_ok="$(extract_ok_line <<<"$ordered_output")"
-  shuffled_ok="$(extract_ok_line <<<"$shuffled_output")"
+  ordered_ok="$(extract_ok_line 1 <<<"$ordered_output")"
+  shuffled_ok="$(extract_ok_line 1 <<<"$shuffled_output")"
 
   if [[ -z "$ordered_ok" || -z "$shuffled_ok" ]]; then
     echo "Missing OK summary line in PHPUnit output" >&2
@@ -342,10 +359,6 @@ main() {
   if [[ "$ordered_ok" != OK\ \(${METHOD_COUNT_EXPECTED}\ tests,* ]]; then
     echo "Unexpected test count in summary: $ordered_ok" >&2
     exit 1
-  fi
-
-  if [[ "$PROOF_ONLY" == "1" ]]; then
-    exit "$ordered_exit"
   fi
 
   if [[ "$ordered_exit" -ne 0 || "$shuffled_exit" -ne 0 ]]; then
